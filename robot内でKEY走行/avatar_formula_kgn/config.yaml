@@ -1,0 +1,25 @@
+lidar:
+  frontal_angle_degrees: 180
+
+# Configuration for Robot and WebSocket
+robot_speed_rpm: 1600  # Default high speed in RPM for the robot
+robot_loop_interval: 0.05  # Interval in seconds for the robot control loop
+watchdog_count_max: 4  # Maximum count for the command watchdog
+
+# WebSocket configuration
+websocket_url: "wss://ws.avatarchallenge.ca-platform.org"  # Base URL for WebSocket
+api_login_url: "https://api.avatarchallenge.ca-platform.org/clientLogin/"  # API URL for login
+api_credentials:
+  username: "keigan-ca001"  # Your API username
+  password: "4*oWmtugri"    # Your API password
+  code: "keigan"            # Your API code
+
+# Robot hardware configuration
+robot_device_1: "/dev/serial/by-id/usb-FTDI_FT232R_USB_UART_B0001KJH-if00-port0"
+robot_device_2: "/dev/serial/by-id/usb-FTDI_FT232R_USB_UART_B003725S-if00-port0"
+
+# Lidar zones configuration (optional)
+lidar_zone_distances:
+  zone_1: 1.0  # Maximum distance for zone 1
+  zone_2: 0.5  # Maximum distance for zone 2
+  zone_3: 0.2  # Maximum distance for zone 3
