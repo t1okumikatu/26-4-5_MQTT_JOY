@@ -6,7 +6,7 @@ import time
 
 # --- 設定 ---
 # WSL2のIPアドレス (先ほどのエラーに出ていたIP、または 'localhost' で試行)
-WSL_IP = "192.168.11.26" 
+WSL_IP = "192.168.1.131" 
 MQTT_TOPIC = "robot/joystick"
 
 # Pygameの初期化
