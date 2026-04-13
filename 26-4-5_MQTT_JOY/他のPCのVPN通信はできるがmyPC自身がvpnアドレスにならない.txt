@@ -1,0 +1,87 @@
+他のPCのVPN通信はできるがmyPC自身がvpnアドレスにならない
+「VPN通信は通ってるけど、自分のPCの出口（IP）が変わってない」状態です
+
+🎯 何が起きてるか
+
+Tailscale はデフォルトだと
+
+👉 端末同士をつなぐだけ（メッシュVPN）
+👉 インターネットの出口は変えない
+
+つまり：
+
+他のPC（Tailscaleあり）にはアクセスできる ✅
+でも自分のIPは普通の回線のまま ❌
+✅ やりたい状態
+
+👉 「自分のPCもVPN経由のIPにしたい」
+
+これは Exit Node（出口ノード） を使います
+
+🔧 解決方法（これが本命）
+① 別のPCをExit Nodeにする
+
+（例：自宅PC）
+
+そのPCで：
+
+tailscale up --advertise-exit-node
+② 管理画面で有効化
+Tailscale管理画面にログイン
+「Machines」→ 該当PC
+Exit Nodeを許可
+③ 自分のPCで使う
+tailscale up --exit-node=100.x.x.x
+
+またはGUIで：
+
+「Use exit node」をON
+🔍 確認方法
+
+接続後：
+
+👉 これでIPチェック
+
+https://ifconfig.me
+
+👉 Exit NodeのIPになっていればOK
+
+⚠️ よくあるミス
+❌ Exit Nodeを設定してない
+
+→ ただの内部VPNになってる
+
+❌ 自分自身をExit Nodeにしてる
+
+→ 意味なし（出口変わらない）
+
+❌ 管理画面で承認してない
+
+→ 有効にならない
+
+❌ DNSだけ変わってる
+
+→ IPは変わらない
+
+👍 補足（構成の理解）
+サブネットルーター → LANアクセス用
+Exit Node → インターネット出口用
+
+👉 別機能です（ここ重要）
+
+👍 まとめ
+今の状態：内部通信だけOK
+欲しい状態：外向き通信もVPN化
+解決：Exit Nodeを使う
+
+もしよければ
+👉「どのOS使ってるか（Windows / Mac / Linux）」
+👉「どのPCを出口にしたいか」
+
+教えてくれれば、詰まりやすいポイント込みでピンポイント設定出します。
+別PCを使う（おすすめ）
+別のPCにTailscale入れる
+そこで：
+tailscale up --advertise-exit-node
+今のPCで：
+tailscale up --exit-node=そのPCのIP

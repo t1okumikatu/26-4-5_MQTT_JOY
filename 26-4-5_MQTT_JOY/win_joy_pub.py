@@ -6,7 +6,7 @@ import time
 
 # --- 設定 ---
 # WSL2のIPアドレス (先ほどのエラーに出ていたIP、または 'localhost' で試行)
-WSL_IP = "192.168.1.131" 
+WSL_IP = "127.0.0.1" 
 MQTT_TOPIC = "robot/joystick"
 
 # Pygameの初期化
@@ -25,7 +25,7 @@ print(f"使用デバイス: {joystick.get_name()}")
 client = mqtt.Client(callback_api_version=mqtt.CallbackAPIVersion.VERSION2)
 
 try:
-    client.connect(WSL_IP, 1883, 60)
+     client.connect(WSL_IP, 1883, 60)
 except Exception as e:
     print(f"WSL2のMQTTブローカーに接続できません: {e}")
     exit()
@@ -44,7 +44,12 @@ try:
         }
         
         # JSONとして送信
-        client.publish(MQTT_TOPIC, json.dumps(data))
+        payload = json.dumps(data)
+        client.publish(MQTT_TOPIC, payload)
+        
+        # --- ここを追加 ---
+        print(f"Sent: {payload}") 
+        # ------------------
         
         # 送信頻度 (20Hz = 0.05秒)
         time.sleep(0.05)
