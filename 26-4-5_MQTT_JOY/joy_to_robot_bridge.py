@@ -46,7 +46,7 @@ client.on_message = on_message
 
 print("=== Joystick Bridge Node 起動中 ===")
 try:
-    client.connect("localhost", 1883, 60)
+    client.connect("localhost", 1884, 60)
     client.subscribe("robot/joystick")
     print("MQTTブローカーに接続完了。ジョイスティック信号を待機しています...")
     client.loop_forever()
