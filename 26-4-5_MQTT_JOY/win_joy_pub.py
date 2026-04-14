@@ -1,12 +1,11 @@
-
 import pygame
 import paho.mqtt.client as mqtt
 import json
 import time
 
 # --- 設定 ---
-# WSL2のIPアドレス (先ほどのエラーに出ていたIP、または 'localhost' で試行)
 WSL_IP = "127.0.0.1" 
+MQTT_PORT = 1884  # VSCodeのポート転送に合わせた番号
 MQTT_TOPIC = "robot/joystick"
 
 # Pygameの初期化
@@ -14,8 +13,8 @@ pygame.init()
 pygame.joystick.init()
 
 if pygame.joystick.get_count() == 0:
-    print("コントローラーが見つかりません。接続を確認してください。")
-    exit()
+   print("コントローラーが見つかりません。")
+exit()
 
 joystick = pygame.joystick.Joystick(0)
 joystick.init()
@@ -25,34 +24,35 @@ print(f"使用デバイス: {joystick.get_name()}")
 client = mqtt.Client(callback_api_version=mqtt.CallbackAPIVersion.VERSION2)
 
 try:
-     client.connect(WSL_IP, 1883, 60)
+    # keepaliveを短くして接続の鮮度を保つ
+    client.connect(WSL_IP, MQTT_PORT, keepalive=5)
 except Exception as e:
-    print(f"WSL2のMQTTブローカーに接続できません: {e}")
+    print(f"接続失敗: {e}")
     exit()
 
-print("送信開始... (Ctrl+Cで終了)")
+print("送信開始... (10Hz / QoS 0)")
 
 try:
     while True:
         pygame.event.pump()
         
-        # 主要なデータを辞書形式でまとめる
+        # データの整理
         data = {
            "axes": [round(joystick.get_axis(i), 3) for i in range(joystick.get_numaxes())],
            "buttons": [joystick.get_button(i) for i in range(joystick.get_numbuttons())],
-            "hats": joystick.get_hat(0) if joystick.get_numhats() > 0 else (0, 0)
+           "hats": joystick.get_hat(0) if joystick.get_numhats() > 0 else (0, 0)
         }
         
-        # JSONとして送信
+        # payloadを変数に入れて重複処理を回避
         payload = json.dumps(data)
-        client.publish(MQTT_TOPIC, payload)
         
-        # --- ここを追加 ---
-        print(f"Sent: {payload}") 
-        # ------------------
+        # QoS=0 (送りっぱなし) にして速度優先
+        client.publish(MQTT_TOPIC, payload, qos=0)
         
-        # 送信頻度 (20Hz = 0.05秒)
-        time.sleep(0.05)
+        print(f"Sent: {payload}")
+        
+        # 送信頻度を 10Hz (0.1秒) に落として渋滞を防止
+        time.sleep(0.1)
         
 except KeyboardInterrupt:
     print("\n終了します。")
