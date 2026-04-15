@@ -1,0 +1,80 @@
+すでに稼働中のプロジェクトに参加する場合、**「既存の環境を壊さないこと」**と**「開発チームと同じライブラリ構成を再現すること」**が最優先事項になります。
+
+ROS 2環境で `venv`（仮想環境）を使い、スムーズに開発に参加するための標準的な手順をまとめました。
+
+---
+
+### 1. 仮想環境の作成（ROS 2対応版）
+ROS 2のシステムライブラリ（`rclpy`など）を仮想環境内でも認識させるため、必ず `--system-site-packages` オプションを付けて作成します。
+
+```bash
+# 既存の環境と分けるため、名前を付けて作成（例: robot-dev-env）
+python3 -m venv --system-site-packages ~/robot-dev-env
+```
+
+### 2. 環境の有効化（2段階のsource）
+開発を始める際は、必ず「ROS 2自体の設定」と「仮想環境の設定」の両方を読み込みます。
+
+```bash
+# 1. ROS 2システムの読み込み
+source /opt/ros/humble/setup.bash
+
+# 2. 仮想環境の有効化
+source ~/robot-dev-env/bin/activate
+```
+> [!TIP]
+> ターミナルの左端に `(robot-dev-env)` と表示されていることを確認してください。
+
+
+
+### 3. プロジェクト用ワークスペースの準備
+既存のプロジェクトを `git clone` するための場所（ワークスペース）を作成します。
+
+```bash
+mkdir -p ~/ros2_ws/src
+cd ~/ros2_ws/src
+
+# ここで既存のプロジェクトをクローン
+# git clone [プロジェクトのリポジトリURL]
+```
+
+### 4. 依存ライブラリのインストール
+プロジェクト内に `requirements.txt`（Python用）や `package.xml`（ROS 2用）があるはずです。それを使って一括インストールします。
+
+* **Pythonライブラリのインストール:**
+  ```bash
+  pip install -r [クローンしたフォルダ]/requirements.txt
+  ```
+* **ROS 2依存関係の解決 (rosdep):**
+  ```bash
+  cd ~/ros2_ws
+  rosdep update
+  rosdep install --from-paths src --ignore-src -y
+  ```
+
+### 5. ビルドとワークスペースの反映
+プロジェクトをビルドして、自分の環境にパスを通します。
+
+```bash
+colcon build --symlink-install
+source install/setup.bash
+```
+
+
+
+---
+
+### 6. VS Codeの設定（開発を楽にする）
+VS Codeが仮想環境を正しく認識するように設定します。
+
+1.  **インタープリターの選択:** `Ctrl + Shift + P` → 「Python: インタープリターを選択」で `~/robot-dev-env/bin/python` を選ぶ。
+2.  **拡張機能:** `Python` と `ROS` (Microsoft製) の拡張機能を入れておくと、コード補完が効くようになります。
+
+---
+
+### 💡 アドバイス
+開発に参加する際、まず最初にチームのリーダーやドキュメント（`README.md`など）を確認し、**「特定のバージョンのライブラリ指定があるか」**を確認してください。
+
+もし途中で「このライブラリが見つからない」というエラーが出たら、そのエラーメッセージを教えていただければ、追加でインストールすべきものを特定できます！
+
+まずはワークスペース（`ros2_ws`）の作成から始めてみますか？
