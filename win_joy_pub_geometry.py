@@ -5,7 +5,7 @@ import time
 
 # --- 設定 ---
 WSL_IP = "127.0.0.1" 
-MQTT_PORT = 1883  # VSCodeポート転送に合わせて1884
+MQTT_PORT = 1884  # VSCodeポート転送に合わせて1884
 MQTT_TOPIC = "robot/joystick"
 
 pygame.init()
