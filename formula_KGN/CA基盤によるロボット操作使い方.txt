@@ -1,0 +1,34 @@
+CA基盤によるアバターロボット KeiganFormula 使い方
+
+<Windows PCログイン方法>
+
+PCローカルアカウント
+
+ユーザー名:avatar1
+パスワード:avatar
+
+
+<ロボット側手順>
+
+chromeブラウザを立ち上げ、https://avatarchallenge.ca-platform.org/ca へ移動
+
+CAアカウント（ロボット側）でログインする　
+※ 後述の main.py 内の name, password と一致している必要がある
+
+	本機の場合 name = keigan-ca001 password = 4*oWmtugri
+
+Visual Studio Code または、Powershell ターミナルを立ち上げ、以下を入力
+python C:\Users\avatar1\Desktop\avatar_formula_kgn\main.py
+
+________________________________________________________________________
+
+<オペレーター側手順>
+
+chromeブラウザを立ち上げ、https://avatarchallenge.ca-platform.org/ca へ移動
+
+OPアカウント（オペレーター側）でログインする　
+	例 name = keigan-op001 password = Y7j_hstbRH
+
+ロボット側のビデオ画像をクリックし、操作十字キーを表示
+
+十字キーを操作して遠隔操作による移動を行う
