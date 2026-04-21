@@ -1,0 +1,213 @@
+いいね、その2つをきっちり分けて実装すれば**2人同時開発でも壊れない構成**になる 👍
+実用でそのまま使える形で出すね（ROS2 Humble / Python3.10想定）。
+
+---
+
+# 🧠 ① arbiterノード（複数入力→1つに統合）
+
+👉 役割
+
+* `/userA/cmd_vel` と `/userB/cmd_vel` を受け取る
+* **優先度＋デッドマン制御**で `/cmd_vel` に出す
+
+---
+
+## arbiter.py
+
+```python
+import rclpy
+from rclpy.node import Node
+from geometry_msgs.msg import Twist
+from std_msgs.msg import Bool
+
+class Arbiter(Node):
+    def __init__(self):
+        super().__init__('arbiter')
+
+        # Publisher
+        self.pub = self.create_publisher(Twist, '/cmd_vel', 10)
+
+        # Subscribers
+        self.create_subscription(Twist, '/userA/cmd_vel', self.cb_a, 10)
+        self.create_subscription(Twist, '/userB/cmd_vel', self.cb_b, 10)
+        self.create_subscription(Bool, '/estop', self.cb_estop, 10)
+
+        # 状態
+        self.last_a = None
+        self.last_b = None
+        self.last_a_time = 0
+        self.last_b_time = 0
+
+        self.estop = False
+
+        # パラメータ
+        self.timeout = 0.5  # 秒
+        self.priority = 'A'  # 'A' or 'B'
+
+        # Timer
+        self.timer = self.create_timer(0.05, self.loop)
+
+    def cb_a(self, msg):
+        self.last_a = msg
+        self.last_a_time = self.get_clock().now().nanoseconds
+
+    def cb_b(self, msg):
+        self.last_b = msg
+        self.last_b_time = self.get_clock().now().nanoseconds
+
+    def cb_estop(self, msg):
+        self.estop = msg.data
+
+    def is_valid(self, last_time):
+        now = self.get_clock().now().nanoseconds
+        return (now - last_time) < self.timeout * 1e9
+
+    def loop(self):
+        twist = Twist()
+
+        if self.estop:
+            self.pub.publish(twist)
+            return
+
+        # 優先制御
+        if self.priority == 'A':
+            if self.last_a and self.is_valid(self.last_a_time):
+                twist = self.last_a
+            elif self.last_b and self.is_valid(self.last_b_time):
+                twist = self.last_b
+        else:
+            if self.last_b and self.is_valid(self.last_b_time):
+                twist = self.last_b
+            elif self.last_a and self.is_valid(self.last_a_time):
+                twist = self.last_a
+
+        self.pub.publish(twist)
+
+
+def main():
+    rclpy.init()
+    node = Arbiter()
+    rclpy.spin(node)
+    node.destroy_node()
+    rclpy.shutdown()
+```
+
+---
+
+# 🔧 ② base_controller（cmd_vel → モーター）
+
+👉 役割
+
+* `/cmd_vel` を受ける
+* 左右速度に変換
+* Keiganなどへ送信（ここは抽象化）
+
+---
+
+## base_controller.py（汎用版）
+
+```python
+import rclpy
+from rclpy.node import Node
+from geometry_msgs.msg import Twist
+
+class BaseController(Node):
+    def __init__(self):
+        super().__init__('base_controller')
+
+        self.create_subscription(Twist, '/cmd_vel', self.cb_cmd, 10)
+
+        # パラメータ
+        self.wheel_base = 0.3   # 車輪間距離[m]
+        self.max_speed = 1.0    # 最大速度[m/s]
+
+    def cb_cmd(self, msg):
+        v = msg.linear.x
+        w = msg.angular.z
+
+        # 差動2輪計算
+        left = v - (self.wheel_base / 2.0) * w
+        right = v + (self.wheel_base / 2.0) * w
+
+        # 制限
+        left = max(min(left, self.max_speed), -self.max_speed)
+        right = max(min(right, self.max_speed), -self.max_speed)
+
+        self.send_to_motor(left, right)
+
+    def send_to_motor(self, left, right):
+        # 👇ここをKeigan APIに置き換える
+        self.get_logger().info(f"Left: {left:.2f}, Right: {right:.2f}")
+
+
+def main():
+    rclpy.init()
+    node = BaseController()
+    rclpy.spin(node)
+    node.destroy_node()
+    rclpy.shutdown()
+```
+
+---
+
+# 🔗 実行構成
+
+```text
+userA → /userA/cmd_vel
+userB → /userB/cmd_vel
+        ↓
+     arbiter
+        ↓
+     /cmd_vel
+        ↓
+ base_controller
+        ↓
+    モーター
+```
+
+---
+
+# 🧪 テスト方法
+
+## userA
+
+```bash
+ros2 run teleop_twist_keyboard teleop_twist_keyboard --ros-args -r cmd_vel:=/userA/cmd_vel
+```
+
+## userB
+
+```bash
+ros2 run teleop_twist_keyboard teleop_twist_keyboard --ros-args -r cmd_vel:=/userB/cmd_vel
+```
+
+---
+
+# ⚠️ 重要ポイント
+
+## ✔ base_controllerは1つだけ
+
+→ 実機競合防止
+
+## ✔ arbiterで統合
+
+→ 同時操作OK
+
+## ✔ /cmd_vel直書き禁止
+
+→ 必ずarbiter経由
+
+---
+
+# 🚀 次やると良い（かなりおすすめ）
+
+* Keigan API組み込み版 base_controller
+* launchファイル（ワンコマンド起動）
+* param化（速度・優先度変更）
+* Web UI操作
+
+---
+
+必要なら👇
+👉「Keigan用に完全対応版にして」
+って言ってくれれば、実機そのまま動くところまで仕上げる 💪
