@@ -1,0 +1,23 @@
+今回実行した Tkinter というライブラリのGUI画面は、ブラウザの中ではなく、「UbuntuPCのデスクトップ画面（モニター）」 に直接ポップアップウィンドウとして表示される仕様です。
+
+いまはSSH（遠隔）で繋いでいるため、画面をどこに出すかの設定をターミナルに教えてあげる必要があります。以下の手順を試してみてください。
+
+解決手順
+1. Ubuntu実機のモニターに画面を出したい場合
+もし、UbuntuPCの前にモニターが繋がっており、そこに画面を出したい場合は、ターミナルで以下のように DISPLAY 環境変数を明示的に指定して実行します。
+
+Bash
+export DISPLAY=:0
+/usr/bin/python3 /home/keime/26-4-5_MQTT_JOY/formula_KGN/dummy_main.py
+(※もし No protocol specified や権限エラーが出る場合は、Ubuntuの実機側で xhost +local: を1回実行してください)
+
+2. 今手元で操作しているWindowsの画面にポップアップさせたい場合
+遠隔操作している手元のWindowsに直接 Control (Mock Mode) のウィンドウを出現させたい場合は、Windows側に VcXsrv などのXサーバーソフトを起動しておく必要があります。
+
+もしVcXsrv（設定時に Disable access control にチェックを入れたもの）が裏で動いている状態であれば、以下のコマンドで手元のWindowsに画面を持ってくることができます。
+
+Bash
+export DISPLAY=$(cat /etc/resolv.conf | grep nameserver | awk '{print $2}'):0.0
+/usr/bin/python3 /home/keime/26-4-5_MQTT_JOY/formula_KGN/dummy_main.py
+ブラウザは一度閉じてしまって大丈夫です！
+実機モニター側、あるいは手元のWindows側、どちらの画面にウィンドウを出したいかに合わせて上のコマンドを実行してみてください。

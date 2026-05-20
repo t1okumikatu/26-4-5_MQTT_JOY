@@ -59,18 +59,18 @@ class RobotController(Node):
         self.in_zone_1 = self.in_zone_2 = self.in_zone_3 = False
         self.closest_distance = None
 
-        # ロボット初期化
+        # ロボット初期化（モックモード固定）
         self.robot = MockRobot()
         self.robot.enable()
 
-        # GUI
+        # GUIのセットアップ
         self.setup_gui()
 
         # --- MQTT受信設定 (ジョイスティック用) ---
         self.mqtt_client = mqtt.Client(callback_api_version=mqtt.CallbackAPIVersion.VERSION2)
         self.mqtt_client.on_message = self.on_mqtt_message
         try:
-            # 自分自身のPCのブローカーに接続
+            # 自身のPCのブローカーに接続
             self.mqtt_client.connect("localhost", 1883, 60)
             self.mqtt_client.subscribe("robot/joystick")
             # 映像・ROS2を止めないよう別スレッドで待機
@@ -154,10 +154,15 @@ class RobotController(Node):
 
     def setup_gui(self):
         try:
-            self.root = tk.Tk(); self.root.title("Control")
+            self.root = tk.Tk()
+            self.root.title("Control (Mock Mode)")
+            # 閉じるボタン（X）が押されたときに綺麗に終了する処理を紐付け
+            self.root.protocol("WM_DELETE_WINDOW", self.quit_app)
             self.gui_enabled = True
-        except:
-            self.root = None; self.gui_enabled = False
+        except Exception as e:
+            print(f"GUI Setup skipped (No Display?): {e}")
+            self.root = None
+            self.gui_enabled = False
 
     def login_and_connect(self):
         """既存のWebSocket映像通信用ログイン"""
@@ -168,16 +173,19 @@ class RobotController(Node):
                 self.info = resp.json()
                 self.connect_ws()
             except Exception as e:
-                sleep(5); self.login_and_connect()
+                print(f"Login failed, retrying... ({e})")
+                sleep(5)
+                self.login_and_connect()
         threading.Thread(target=task, daemon=True).start()
 
     def connect_ws(self):
         token = self.info['authorisation']['token']
+        # 💡 引数のミスマッチを避けるため、on_open と on_close は *args で受けるように修正
         self.ws = websocket.WebSocketApp(
             f'wss://ws.avatarchallenge.ca-platform.org?token={token}',
             on_message=self.on_ws_message,
-            on_open=lambda ws: setattr(self, 'is_ws_connected', True),
-            on_close=lambda ws, s, m: setattr(self, 'is_ws_connected', False)
+            on_open=lambda *args: setattr(self, 'is_ws_connected', True),
+            on_close=lambda *args: setattr(self, 'is_ws_connected', False)
         )
         threading.Thread(target=self.ws.run_forever, daemon=True).start()
 
@@ -193,9 +201,25 @@ class RobotController(Node):
             self.watchdog_count = 0
 
     def quit_app(self):
-        self.robot.run_stop(); self.robot.disable()
-        if self.gui_enabled: self.root.destroy()
-        rclpy.shutdown(); sys.exit()
+        print("\nShutting down safely...")
+        self.robot.run_stop()
+        self.robot.disable()
+        
+        # WebSocketが動いていれば閉じる
+        if hasattr(self, 'ws') and self.ws:
+            try: self.ws.close()
+            except: pass
+
+        # GUIウインドウの破棄
+        if self.gui_enabled and self.root:
+            try: self.root.destroy()
+            except: pass
+
+        # ROS 2 の重複シャットダウンを防止して安全に終了
+        if rclpy.ok():
+            rclpy.shutdown()
+            
+        sys.exit(0)
 
 if __name__ == "__main__":
     rclpy.init()
@@ -203,10 +227,15 @@ if __name__ == "__main__":
     controller.login_and_connect()
 
     if controller.gui_enabled:
+        # GUIがある場合は、ROS 2 のイベントループを別スレッドで回す
         ros_thread = threading.Thread(target=lambda: rclpy.spin(controller), daemon=True)
         ros_thread.start()
-        controller.root.mainloop()
+        try:
+            controller.root.mainloop()
+        except KeyboardInterrupt:
+            controller.quit_app()
     else:
+        # GUIがない場合はメインスレッドでそのままスピン
         try:
             rclpy.spin(controller)
         except KeyboardInterrupt:
